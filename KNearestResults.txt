@@ -1,9 +1,20 @@
 IRIS DATA SET RESULTS
-Average sklearn time with 11 neighbors: 0 seconds
-Average sklearn accuracy after 100 runs: 0.97%
+Average sklearn time with 9 neighbors: 0.10447906494140625 seconds
+Average sklearn accuracy after 50 runs: 0.961%
 BREAST CANCER DATA SET RESULTS
-Average sklearn time with 7 neighbors: 0 seconds
-Average sklearn accuracy after 100 runs: 0.967%
+Average sklearn time with 5 neighbors: 0.10885519981384277 seconds
+Average sklearn accuracy after 50 runs: 0.972%
 TITANIC DATA SET RESULTS
-Average sklearn time with 13 neighbors: 0 seconds
-Average sklearn accuracy after 100 runs: 0.798%
+Average sklearn time with 7 neighbors: 0.11364763259887695 seconds
+Average sklearn accuracy after 50 runs: 0.786%
+
+
+IRIS DATA SET RESULTS
+Average sklearn time with 2 means: 0.056419358253479004 seconds
+Average sklearn accuracy after 50 runs: 0.827%
+BREAST CANCER DATA SET RESULTS
+Average sklearn time with 1 means: 0.21811744213104248 seconds
+Average sklearn accuracy after 50 runs: 1.0%
+TITANIC DATA SET RESULTS
+Average sklearn time with 7 means: 0.47286042690277097 seconds
+Average sklearn accuracy after 50 runs: 0.843%
