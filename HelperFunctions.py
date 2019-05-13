@@ -1,18 +1,11 @@
-from sklearn.model_selection import train_test_split
-from sklearn.model_selection import cross_val_score
-from sklearn import neighbors
 from sklearn import preprocessing
-from pandas.plotting import parallel_coordinates
 import pandas as pd
-from collections import Counter
-import matplotlib.pyplot as plt
-import seaborn as sns
 import numpy as np
-import time
 
 
 def prepare_iris_data():
     df = pd.read_csv('iris.data.txt')
+    df = handle_non_numerical_data(df)
     y = np.array(df['class'])
     x = np.array(df.drop(['class'], 1))
     return df, x, y
@@ -59,5 +52,4 @@ def handle_non_numerical_data(df):
                     x += 1
 
             df[column] = list(map(convert_to_int, df[column]))
-
     return df
