@@ -1,61 +1,21 @@
-import matplotlib.pyplot as plt
-from matplotlib import style
-import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.model_selection import cross_val_score
 from sklearn.cluster import KMeans
-from sklearn import preprocessing
-import pandas as pd
-style.use("ggplot")
+from pandas.plotting import parallel_coordinates
+from collections import Counter
+import matplotlib.pyplot as plt
+import seaborn as sns
+import numpy as np
+import time
+import HelperFunctions
 
-
-"""
-BUILT IN FOR SIMPLE SAMPLE
-X = np.array([[1, 2], [1.5, 1.8], [5, 8], [8, 8], [1, 0.6], [9, 11]])
-
-# plt.scatter(X[:, 0], X[:, 1], s=150)
-# plt.show()
-
-clf = KMeans(n_clusters=6)
-clf.fit(X)
-
-centroids = clf.cluster_centers_
-labels = clf.labels_
-
-colors = 10*["g.", "r.", "c.", "b.", "k."]
-
-
-for i in range(len(X)):
-    plt.plot(X[i][0], X[i][1], colors[labels[i]], markersize=10)
-plt.scatter(centroids[:, 0], centroids[:, 1], marker="x", s=150, linewidth=5)
-# plt.show()
-"""
-
-"""
-X = np.array([[1, 2],
-              [1.5, 1.8],
-              [5, 8],
-              [8, 8],
-              [1, 0.6],
-              [9, 11],
-              [1, 3],
-              [8, 9],
-              [0, 3],
-              [5, 4],
-              [6, 4], ])
-
-plt.scatter(X[:, 0], X[:, 1], s=150)
-plt.show()
-
-"""
-colors = 10*["g", "r", "c", "b", "k"]
-
-
-class CustomKMeans:
-    def __init__(self, k=2, tol=0.001, max_iter=300):
+class MyKMeansClassifier:
+    def __init__(self, k, tol=0.001, max_iter=300):
         self.k = k
         self.tol = tol
         self.max_iter = max_iter
 
-    def fit(self,data):
+    def fit(self, data):
 
         self.centroids = {}
 
@@ -77,7 +37,7 @@ class CustomKMeans:
             prev_centroids = dict(self.centroids)
 
             for classification in self.classifications:
-                self.centroids[classification] = np.average(self.classifications[classification],axis=0)
+                self.centroids[classification] = np.average(self.classifications[classification], axis=0)
 
             optimized = True
 
@@ -91,105 +51,163 @@ class CustomKMeans:
             if optimized:
                 break
 
-    def predict(self,data):
+    def predict(self, data):
         distances = [np.linalg.norm(data-self.centroids[centroid]) for centroid in self.centroids]
         classification = distances.index(min(distances))
         return classification
 
 
-df = pd.read_excel('titanic.xls')
-df.drop(['body', 'name', 'home.dest'], 1, inplace=True)
-df.infer_objects()
-df.fillna(0, inplace=True)
+def custom_k_means(x, y, optimal_k):
+    calculated_accuracies = []
+    for i in range(50):
+        correct = 0
+        for i in range(len(x)):
+            predict_me = np.array(x[i].astype(float))
+            predict_me = predict_me.reshape(-1, len(predict_me))
+            prediction = predict(predict_me)
+            if prediction == y[i]:
+                correct += 1
+
+        accuracy = correct / len(x)
+        if accuracy < 0.5:
+            accuracy = 1.0 - accuracy
+        calculated_accuracies.append(accuracy)
 
 
-def handle_non_numerical_data(df):
-    columns = df.columns.values
-
-    for column in columns:
-        text_digit_vals = {}
-
-        def convert_to_int(val):
-            return text_digit_vals[val]
-
-        if df[column].dtype != np.int64 and df[column].dtype != np.float64:
-            column_contents = df[column].values.tolist()
-            unique_elements = set(column_contents)
-            x = 0
-            for unique in unique_elements:
-                if unique not in text_digit_vals:
-                    text_digit_vals[unique] = x
-                    x += 1
-
-            df[column] = list(map(convert_to_int, df[column]))
-
-    return df
+def sklearn_k_means(x, y, optimal_k):
+    calculated_accuracies = []
+    for i in range(50):
+        correct = 0
+        clf = KMeans(n_clusters=optimal_k)
+        clf.fit(x)
+        for i in range(len(x)):
+            predict_me = np.array(x[i].astype(float))
+            predict_me = predict_me.reshape(-1, len(predict_me))
+            prediction = clf.predict(predict_me)
+            if prediction[0] == y[i]:
+                correct += 1
+        accuracy = correct / len(x)
+        if accuracy < 0.5:
+            accuracy = 1.0 - accuracy
+        calculated_accuracies.append(accuracy)
+    return calculated_accuracies
 
 
-df = handle_non_numerical_data(df)
+def determine_optimal_k(x, y):
+    k_bests = []
+    for i in range(5):
+        k_list = list(range(1, 8))
+        scores = []
 
-df.drop(['boat'], 1, inplace=True)
+        for k in k_list:
+            correct = 0
+            clf = KMeans(n_clusters=k)
+            clf.fit(x)
+            for i in range(len(x)):
+                predict_me = np.array(x[i].astype(float))
+                predict_me = predict_me.reshape(-1, len(predict_me))
+                prediction = clf.predict(predict_me)
+                if prediction[0] == y[i]:
+                    correct += 1
+            accuracy = correct / len(x)
+            if accuracy < 0.5:
+                accuracy = 1.0 - accuracy
+            scores.append(accuracy)
 
-X = np.array(df.drop(['survived'], 1).astype(float))
-X = preprocessing.scale(X)
-y = np.array(df['survived'])
-
-
-clf = KMeans(n_clusters=2)
-clf.fit(X)
-
-correct = 0
-for i in range(len(X)):
-    predict_me = np.array(X[i].astype(float))
-    predict_me = predict_me.reshape(-1, len(predict_me))
-    prediction = clf.predict(predict_me)
-    if prediction[0] == y[i]:
-        correct += 1
-
-accuracy = correct/len(X)
-if accuracy < 0.5:
-    accuracy = 1.0 - accuracy
-
-print("SciKit accuracy: {}".format(accuracy))
-
-
-customClf = CustomKMeans()
-customClf.fit(X)
-
-customCorrect = 0
-for i in range(len(X)):
-    predict_me = np.array(X[i].astype(float))
-    predict_me = predict_me.reshape(-1, len(predict_me))
-    prediction = customClf.predict(predict_me)
-    if prediction == y[i]:
-        customCorrect += 1
-
-customAccuracy = customCorrect/len(X)
-if customAccuracy < 0.5:
-    customAccuracy = 1.0 - customAccuracy
-
-print("Custom accuracy: {}".format(customAccuracy))
-
-"""
-for centroid in clf.centroids:
-    plt.scatter(clf.centroids[centroid][0], clf.centroids[centroid][1],
-                marker="o", color="k", s=150, linewidths=5)
-
-for classification in clf.classifications:
-    color = colors[classification]
-    for featureset in clf.classifications[classification]:
-        plt.scatter(featureset[0], featureset[1], marker="x", color=color, s=150, linewidths=5)
-
-unknowns = np.array([[1, 3],
-                     [8, 9],
-                     [0, 3],
-                     [5, 4],
-                     [6, 4], ])
-
-for unknown in unknowns:
-    classification = clf.predict(unknown)
-    plt.scatter(unknown[0], unknown[1], marker="*", color=colors[classification], s=150, linewidths=5)
+        mse = [1 - x for x in scores]
+        # display_optimal_k_determination_visual(k_list, MSE)
+        best_k = k_list[mse.index(min(mse))]
+        k_bests.append(best_k)
+    return max(set(k_bests), key=k_bests.count)
 
 
-plt.show()
-"""
+def prepare_output_file():
+    f = open("KNearestResults.txt", "a")
+    return f
+
+
+def output_iris_data(f, x, y, k):
+    f.write("IRIS DATA SET RESULTS\n")
+    sk_learn_start_time = time.time()
+    sklearn_iris_accuracies = sklearn_k_means(x, y, k)
+    sk_learn_end_time = time.time()
+    f.write("Average sklearn time with {} means: {} seconds\n"
+            .format(k, ((sk_learn_end_time - sk_learn_start_time) / len(sklearn_iris_accuracies))))
+    average_iris_accuracy = round(sum(sklearn_iris_accuracies) / len(sklearn_iris_accuracies), 3)
+    f.write("Average sklearn accuracy after {} runs: {}%\n"
+            .format(len(sklearn_iris_accuracies), average_iris_accuracy))
+
+
+def output_breast_cancer_data(f, x, y, k):
+    f.write("BREAST CANCER DATA SET RESULTS\n")
+    sk_learn_start_time = time.time()
+    sklearn_bc_accuracies = sklearn_k_means(x, y, k)
+    sk_learn_end_time = time.time()
+    f.write("Average sklearn time with {} means: {} seconds\n"
+            .format(k, ((sk_learn_end_time - sk_learn_start_time) / len(sklearn_bc_accuracies))))
+    average_bc_accuracy = round(sum(sklearn_bc_accuracies) / len(sklearn_bc_accuracies), 3)
+    f.write("Average sklearn accuracy after {} runs: {}%\n"
+            .format(len(sklearn_bc_accuracies), average_bc_accuracy))
+
+
+def output_titanic_data(f, x, y, k):
+    f.write("TITANIC DATA SET RESULTS\n")
+    sk_learn_start_time = time.time()
+    sklearn_titanic_accuracies = sklearn_k_means(x, y, k)
+    sk_learn_end_time = time.time()
+    f.write("Average sklearn time with {} means: {} seconds\n"
+            .format(k, ((sk_learn_end_time - sk_learn_start_time) / len(sklearn_titanic_accuracies))))
+    average_titanic_accuracy = round(sum(sklearn_titanic_accuracies) / len(sklearn_titanic_accuracies), 3)
+    f.write("Average sklearn accuracy after {} runs: {}%\n"
+            .format(len(sklearn_titanic_accuracies), average_titanic_accuracy))
+
+
+def output():
+
+    f = prepare_output_file()
+    iris_df, iris_x, iris_y = HelperFunctions.prepare_iris_data()
+    breast_cancer_df, breast_cancer_x, breast_cancer_y = HelperFunctions.prepare_breast_cancer_data()
+    titanic_df, titanic_x, titanic_y = HelperFunctions.prepare_titanic_data()
+
+    # parallel_coordinates_data_visualization(iris_df)
+
+    ideal_iris_k = determine_optimal_k(iris_x, iris_y)
+    ideal_breast_cancer_k = determine_optimal_k(breast_cancer_x, breast_cancer_y)
+    ideal_titanic_k = determine_optimal_k(titanic_x, titanic_y)
+
+    output_iris_data(f, iris_x, iris_y, ideal_iris_k)
+    output_breast_cancer_data(f, breast_cancer_x, breast_cancer_y, ideal_breast_cancer_k)
+    output_titanic_data(f, titanic_x, titanic_y, ideal_titanic_k)
+
+    my_iris_classifier = MyKMeansClassifier(ideal_iris_k)
+    my_breast_cancer_classifier = MyKMeansClassifier(ideal_breast_cancer_k)
+    my_titanic_classifier = MyKMeansClassifier(ideal_titanic_k)
+
+    my_iris_classifier.fit(iris_x)
+    my_breast_cancer_classifier.fit(breast_cancer_x)
+    my_titanic_classifier.fit(titanic_x)
+
+    calculated_accuracies = []
+    for i in range(50):
+        correct = 0
+        for i in range(len(iris_x)):
+            predict_me = np.array(iris_x[i].astype(float))
+            predict_me = predict_me.reshape(-1, len(predict_me))
+            prediction = my_iris_classifier.predict(predict_me)
+            if prediction == iris_y[i]:
+                correct += 1
+
+        accuracy = correct / len(iris_x)
+        if accuracy < 0.5:
+            accuracy = 1.0 - accuracy
+        calculated_accuracies.append(accuracy)
+
+    print(round(sum(calculated_accuracies) / len(calculated_accuracies), 3))
+
+    # my_y_pred = my_iris_classifier.predict(iris_x)
+    # print(my_y_pred)
+    # accuracy = accuracy_score(y_test, my_y_pred)*100
+    # print('Accuracy of our model is equal ' + str(round(accuracy, 2)) + ' %.')
+
+
+output()
