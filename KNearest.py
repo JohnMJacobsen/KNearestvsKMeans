@@ -6,42 +6,43 @@ from collections import Counter
 import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
+import random
 import time
 import HelperFunctions
 
 
 class MyKNeighborsClassifier:
 
-    def __init__(self, n_neighbors):
+    def __init__(self, n_neighbors, df):
         self.n_neighbors = n_neighbors
+        self.df = df
 
-    def fit(self, X, y):
-        n_samples = X.shape[0]
-        if self.n_neighbors > n_samples:
-            raise ValueError("Insufficient data points")
+    def generate_sample(self):
+        full_data = self.df.astype(float).values.tolist()
+        random.shuffle(full_data)
+        test_size = 0.2
+        train_set = {2: [], 4: []}
+        test_set = {2: [], 4: []}
+        train_data = full_data[:-int(test_size * len(full_data))]
+        test_data = full_data[-int(test_size * len(full_data)):]
 
-        if X.shape[0] != y.shape[0]:
-            raise ValueError("Number of samples in X and y need to be equal.")
+        for i in train_data:
+            train_set[i[-1]].append(i[:-1])
 
-        # finding and saving all possible class labels
-        self.classes_ = np.unique(y)
+        for i in test_data:
+            test_set[i[-1]].append(i[:-1])
 
-        self.X = X
-        self.y = y
+        correct = 0
+        total = 0
 
-    def predict(self, X_test):
-
-        n_predictions, n_features = X_test.shape
-
-        # allocationg space for array of predictions
-        predictions = np.empty(n_predictions, dtype=int)
-
-        # loop over all observations
-        for i in range(n_predictions):
-            # calculation of single prediction
-            predictions[i] = single_prediction(self.X, self.y, X_test[i, :], self.n_neighbors)
-
-        return predictions
+        for group in test_set:
+            for data in test_set[group]:
+                vote = k_nearest_neighbors(train_set, data, k=self.n_neighbors)
+                if group == vote:
+                    correct += 1
+                total += 1
+        accuracy = correct / total
+        return accuracy
 
 
 def k_nearest_neighbors(data, predict, k):
@@ -56,16 +57,14 @@ def k_nearest_neighbors(data, predict, k):
             distances.append([euclidean_distance, group])
 
     votes = [i[1] for i in sorted(distances)[:k]]
-
     vote_result = Counter(votes).most_common(1)[0][0]
-    confidence = Counter(votes).most_common(1)[0][1] / k
 
-    return vote_result, confidence
+    return vote_result
 
 
 def determine_optimal_k(x, y):
     k_bests = []
-    for i in range(10):
+    for i in range(5):
         x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2)
         k_list = list(range(1, 16, 2))
 
@@ -116,23 +115,16 @@ def display_optimal_k_determination_visual(k_list, mse):
     plt.show()
 
 
-def single_prediction(X, y, x_train, k):
+def single_prediction(x, y, x_train, k):
 
-    # number of samples inside training set
-    n_samples = X.shape[0]
-
-    # create array for distances and targets
+    n_samples = x.shape[0]
     distances = np.empty(n_samples, dtype=np.float64)
 
-    # distance calculation
     for i in range(n_samples):
-        distances[i] = (x_train - X[i]).dot(x_train - X[i])
+        distances[i] = (x_train - x[i]).dot(x_train - x[i])
 
-    # combining arrays as columns
     distances = np.c_[distances, y]
-    # sorting array by value of first column
     sorted_distances = distances[distances[:, 0].argsort()]
-    # celecting labels associeted with k smallest distances
     targets = sorted_distances[0:k, 1]
 
     unique, counts = np.unique(targets, return_counts=True)
@@ -152,7 +144,7 @@ def output_iris_data(f, x, y, k):
     sklearn_iris_accuracies = sklearn_k_nearest(x, y, k)
     sk_learn_end_time = time.time()
     f.write("Average sklearn time with {} neighbors: {} seconds\n"
-            .format(k, round((sk_learn_end_time - sk_learn_start_time) / len(sklearn_iris_accuracies)), 3))
+            .format(k, round((sk_learn_end_time - sk_learn_start_time) / len(sklearn_iris_accuracies)), 6))
     average_iris_accuracy = round(sum(sklearn_iris_accuracies) / len(sklearn_iris_accuracies), 3)
     f.write("Average sklearn accuracy after {} runs: {}%\n"
             .format(len(sklearn_iris_accuracies), average_iris_accuracy))
@@ -164,7 +156,7 @@ def output_breast_cancer_data(f, x, y, k):
     sklearn_bc_accuracies = sklearn_k_nearest(x, y, k)
     sk_learn_end_time = time.time()
     f.write("Average sklearn time with {} neighbors: {} seconds\n"
-            .format(k, round((sk_learn_end_time - sk_learn_start_time) / len(sklearn_bc_accuracies)), 3))
+            .format(k, round((sk_learn_end_time - sk_learn_start_time) / len(sklearn_bc_accuracies)), 6))
     average_bc_accuracy = round(sum(sklearn_bc_accuracies) / len(sklearn_bc_accuracies), 3)
     f.write("Average sklearn accuracy after {} runs: {}%\n"
             .format(len(sklearn_bc_accuracies), average_bc_accuracy))
@@ -176,13 +168,13 @@ def output_titanic_data(f, x, y, k):
     sklearn_titanic_accuracies = sklearn_k_nearest(x, y, k)
     sk_learn_end_time = time.time()
     f.write("Average sklearn time with {} neighbors: {} seconds\n"
-            .format(k, round((sk_learn_end_time - sk_learn_start_time) / len(sklearn_titanic_accuracies)), 3))
+            .format(k, round((sk_learn_end_time - sk_learn_start_time) / len(sklearn_titanic_accuracies)), 6))
     average_titanic_accuracy = round(sum(sklearn_titanic_accuracies) / len(sklearn_titanic_accuracies), 3)
     f.write("Average sklearn accuracy after {} runs: {}%\n"
             .format(len(sklearn_titanic_accuracies), average_titanic_accuracy))
 
 
-def main():
+def output():
 
     f = restore_output_file()
     iris_df, iris_x, iris_y = HelperFunctions.prepare_iris_data()
@@ -199,26 +191,12 @@ def main():
     output_breast_cancer_data(f, breast_cancer_x, breast_cancer_y, ideal_breast_cancer_k)
     output_titanic_data(f, titanic_x, titanic_y, ideal_titanic_k)
 
-    # my_classifier = MyKNeighborsClassifier(ideal_k)
-    # my_classifier.fit(iris_x, iris_y)
+    my_iris_classifier = MyKNeighborsClassifier(ideal_iris_k, iris_df)
+    # my_breast_cancer_classifier = MyKNeighborsClassifier(ideal_breast_cancer_k, breast_cancer_df)
+    # my_titanic_classifier = MyKNeighborsClassifier(ideal_titanic_k, titanic_df)
 
-    # my_y_pred = my_classifier.predict(iris_x)
-    # accuracy = accuracy_score(y_test, my_y_pred)*100
-    # print('Accuracy of our model is equal ' + str(round(accuracy, 2)) + ' %.')
+    accuracy = my_iris_classifier.generate_sample()
+    print(accuracy)
 
 
-main()
-
-"""
-correct = 0
-total = 0
-
-for group in test_set:
-    for data in test_set[group]:
-        vote, confidence = k_nearest_neighbors(train_set, data, k=5)
-        if group == vote:
-            correct += 1
-        total += 1
-print("Handmade Accuracy: {}".format(correct/total))
-customAccuracies.append(correct/total)
-"""
+output()
